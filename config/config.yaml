@@ -1,0 +1,15 @@
+# Configuration file for Monte Carlo Risk Analysis Engine
+general:
+  project_name: "Monte Carlo Risk Analysis"
+
+data:
+  default_ticker: "AAPL"
+  start_date: "2020-01-01"
+  end_date: "2023-01-01"
+
+simulation:
+  num_paths: 10000
+  time_horizon_days: 252
+
+risk:
+  confidence_level: 0.95
