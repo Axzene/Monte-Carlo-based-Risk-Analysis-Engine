@@ -13,10 +13,10 @@ def detect_breaches(var_series:pd.Series, returns:pd.Series,confidence_level:int
     breach_rate = breach_count/len_breach
 
     return {
-        "breaches dates":breach_dates,
-        "breach rate": float(breach_rate),
-        "expected breach rate": round(1-confidence_level,2),
-        "total days":len_breach,
-        "breach count": int(breach_count)
+        "breaches_dates":breach_dates,
+        "breach_rate": float(breach_rate),
+        "expected_breach_rate": round(1-confidence_level,2),
+        "total_days":len_breach,
+        "breach_count": int(breach_count)
 
     }
