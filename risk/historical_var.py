@@ -1,7 +1,7 @@
 import pandas as pd 
 import numpy as np
 
-def compute_historical_var(returns: pd.series, confidence_level: float = 0.95) ->float:
+def compute_historical_var(returns: pd.Series, confidence_level: float = 0.95) -> float:
 
     """ 
     Computes the historical VaR
@@ -18,7 +18,7 @@ def compute_historical_var(returns: pd.series, confidence_level: float = 0.95) -
     var = -np.percentile(returns,(1-confidence_level)*100)
     return float(var)
 
-def compute_historical_cvar(returns:pd.series, confidence_level:float=0.95)->float:
+def compute_historical_cvar(returns: pd.Series, confidence_level: float = 0.95) -> float:
     """ 
     Computes the historical CVaR
     returns : series of log returns
