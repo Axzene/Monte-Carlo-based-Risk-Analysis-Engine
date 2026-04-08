@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCARE · Monte Carlo Risk Analysis Engine</title>
+  <meta name="description" content="Bloomberg-grade Monte Carlo risk dashboard. Simulate GBM price paths, compute VaR/CVaR, run backtests and view return distributions in real-time." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════  NAV  ═══════════════════════════ -->
+  <nav class="nav">
+    <div class="nav-brand">
+      <span class="nav-logo">◈</span>
+      <span class="nav-title">MCARE</span>
+      <span class="nav-sub">Monte Carlo Risk Engine</span>
+    </div>
+    <div class="nav-indicators">
+      <div class="indicator" id="nav-status">
+        <span class="indicator-dot pulse"></span>
+        <span class="indicator-text">READY</span>
+      </div>
+      <div class="indicator">
+        <span class="indicator-label">ENGINE</span>
+        <span class="indicator-value accent">GBM v2.1</span>
+      </div>
+      <div class="indicator">
+        <span class="indicator-label">SEED</span>
+        <span class="indicator-value mono" id="nav-seed">42</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════  HERO TICKER  ═══════════════════ -->
+  <div class="ticker-bar">
+    <div class="ticker-scroll">
+      <span class="ticker-item">AAPL <span class="up">+0.84%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">MSFT <span class="up">+1.22%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">NVDA <span class="up">+3.41%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">TSLA <span class="dn">−2.07%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">AMZN <span class="up">+0.56%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">GOOGL <span class="dn">−0.33%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">META <span class="up">+1.89%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">SPY <span class="up">+0.41%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">QQQ <span class="up">+0.67%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">BTC-USD <span class="dn">−1.14%</span></span>
+      <span class="ticker-sep">·</span>
+      <!-- duplicate for seamless loop -->
+      <span class="ticker-item">AAPL <span class="up">+0.84%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">MSFT <span class="up">+1.22%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">NVDA <span class="up">+3.41%</span></span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-item">TSLA <span class="dn">−2.07%</span></span>
+      <span class="ticker-sep">·</span>
+    </div>
+  </div>
+
+  <main class="main">
+
+    <!-- ═══════════════════════  SECTION 1: SIMULATION PANEL  ══════ -->
+    <section class="section reveal" id="section-sim">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2 class="section-title">Simulation Parameters</h2>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="sim-grid">
+        <div class="field-group">
+          <label class="field-label" for="input-ticker">Asset Ticker</label>
+          <div class="input-wrap">
+            <input class="field-input" id="input-ticker" type="text" value="AAPL" maxlength="8" autocomplete="off" spellcheck="false" />
+            <span class="input-tag">SYM</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="input-price">Initial Price (S₀)</label>
+          <div class="input-wrap">
+            <span class="input-prefix">$</span>
+            <input class="field-input has-prefix" id="input-price" type="number" value="182.50" step="0.01" min="0.01" />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="input-mu">Daily Drift μ</label>
+          <div class="input-wrap">
+            <input class="field-input" id="input-mu" type="number" value="0.0003" step="0.0001" />
+            <span class="input-tag">μ</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="input-sigma">Daily Volatility σ</label>
+          <div class="input-wrap">
+            <input class="field-input" id="input-sigma" type="number" value="0.015" step="0.001" min="0.001" />
+            <span class="input-tag">σ</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Confidence Level</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="conf-95" data-val="0.95">95%</button>
+            <button class="toggle-btn" id="conf-99" data-val="0.99">99%</button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="input-paths">Monte Carlo Paths</label>
+          <div class="input-wrap">
+            <input class="field-input" id="input-paths" type="number" value="1000" step="100" min="100" max="10000" />
+            <span class="input-tag">N</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="input-horizon">Horizon (Days)</label>
+          <div class="input-wrap">
+            <input class="field-input" id="input-horizon" type="number" value="21" step="1" min="1" max="252" />
+            <span class="input-tag">T</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="input-seed">Random Seed</label>
+          <div class="input-wrap">
+            <input class="field-input" id="input-seed" type="number" value="42" step="1" min="0" />
+            <span class="input-tag">RNG</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="run-row">
+        <button class="run-btn" id="btn-run">
+          <span class="run-icon">▶</span>
+          <span class="run-label">RUN SIMULATION</span>
+          <span class="run-paths" id="run-paths-label">1000 PATHS</span>
+        </button>
+        <div class="run-meta">
+          <span class="run-meta-item">Model: <span class="accent">GBM / Continuous-Time</span></span>
+          <span class="run-meta-item">Method: <span class="accent">Euler-Maruyama</span></span>
+          <span class="run-meta-item">Vectorized: <span class="accent">NumPy</span></span>
+        </div>
+      </div>
+
+      <div class="progress-bar-wrap" id="progress-wrap" style="display:none">
+        <div class="progress-bar" id="progress-bar"></div>
+        <span class="progress-label" id="progress-label">Simulating…</span>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════  SECTION 2: RISK METRICS  ══════════ -->
+    <section class="section reveal" id="section-metrics">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2 class="section-title">Risk Metrics</h2>
+        <div class="section-line"></div>
+        <span class="section-tag" id="metrics-conf-tag">95% CI</span>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card primary" id="card-var">
+          <div class="metric-label">Value at Risk</div>
+          <div class="metric-abbr">VaR</div>
+          <div class="metric-value accent" id="val-var">—</div>
+          <div class="metric-unit">% loss</div>
+          <div class="metric-desc">Max expected loss not exceeded with <span id="desc-conf">95%</span> confidence</div>
+          <div class="metric-glow"></div>
+        </div>
+
+        <div class="metric-card" id="card-cvar">
+          <div class="metric-label">Cond. Value at Risk</div>
+          <div class="metric-abbr">CVaR / ES</div>
+          <div class="metric-value" id="val-cvar">—</div>
+          <div class="metric-unit">% loss</div>
+          <div class="metric-desc">Expected loss in the tail beyond VaR threshold</div>
+        </div>
+
+        <div class="metric-card" id="card-ret">
+          <div class="metric-label">Expected Return</div>
+          <div class="metric-abbr">E[R]</div>
+          <div class="metric-value" id="val-ret">—</div>
+          <div class="metric-unit">% over horizon</div>
+          <div class="metric-desc">Mean simulated terminal return across all paths</div>
+        </div>
+
+        <div class="metric-card" id="card-vol">
+          <div class="metric-label">Return Volatility</div>
+          <div class="metric-abbr">σ(R)</div>
+          <div class="metric-value" id="val-vol">—</div>
+          <div class="metric-unit">std dev</div>
+          <div class="metric-desc">Standard deviation of the simulated return distribution</div>
+        </div>
+      </div>
+
+      <div class="metrics-secondary">
+        <div class="sec-metric">
+          <span class="sec-label">Sharpe Ratio</span>
+          <span class="sec-value mono" id="val-sharpe">—</span>
+        </div>
+        <div class="sec-metric">
+          <span class="sec-label">Skewness</span>
+          <span class="sec-value mono" id="val-skew">—</span>
+        </div>
+        <div class="sec-metric">
+          <span class="sec-label">Kurtosis</span>
+          <span class="sec-value mono" id="val-kurt">—</span>
+        </div>
+        <div class="sec-metric">
+          <span class="sec-label">Min Return</span>
+          <span class="sec-value mono" id="val-min">—</span>
+        </div>
+        <div class="sec-metric">
+          <span class="sec-label">Max Return</span>
+          <span class="sec-value mono" id="val-max">—</span>
+        </div>
+        <div class="sec-metric">
+          <span class="sec-label">Paths Profitable</span>
+          <span class="sec-value mono" id="val-profit">—</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════  SECTION 3: PRICE PATHS  ═══════════ -->
+    <section class="section reveal" id="section-paths">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h2 class="section-title">Simulated Price Paths</h2>
+        <div class="section-line"></div>
+        <span class="section-tag" id="paths-tag">GBM</span>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item"><span class="legend-dot" style="background:#00FF85"></span> Mean Path</div>
+        <div class="legend-item"><span class="legend-dot" style="background:rgba(0,212,255,0.25)"></span> Simulated Paths</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#FF3B47"></span> VaR Threshold</div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart-paths"></canvas>
+        <div class="chart-overlay" id="paths-overlay">
+          <span class="overlay-text">Run simulation to generate paths</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════  SECTION 4: BACKTEST  ══════════════ -->
+    <section class="section reveal" id="section-backtest">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h2 class="section-title">Backtesting Analysis</h2>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="backtest-stats">
+        <div class="bt-stat">
+          <div class="bt-stat-label">Observed Breach Rate</div>
+          <div class="bt-stat-value mono" id="bt-observed">—</div>
+        </div>
+        <div class="bt-stat">
+          <div class="bt-stat-label">Theoretical Rate</div>
+          <div class="bt-stat-value mono" id="bt-theoretical">—</div>
+        </div>
+        <div class="bt-stat">
+          <div class="bt-stat-label">Breach Count</div>
+          <div class="bt-stat-value mono" id="bt-count">—</div>
+        </div>
+        <div class="bt-stat">
+          <div class="bt-stat-label">Model Accuracy</div>
+          <div class="bt-stat-value mono" id="bt-accuracy">—</div>
+        </div>
+        <div class="bt-stat wide">
+          <div class="bt-stat-label">Traffic Light Signal</div>
+          <div class="bt-stat-value mono" id="bt-signal">—</div>
+        </div>
+      </div>
+
+      <div class="breach-timeline">
+        <div class="timeline-header">
+          <span class="timeline-label">Breach Events (last 100 paths)</span>
+          <div class="timeline-legend">
+            <span class="tl-item safe">SAFE</span>
+            <span class="tl-item breach">BREACH</span>
+          </div>
+        </div>
+        <div class="timeline-grid" id="timeline-grid">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <div class="chart-wrap short">
+        <canvas id="chart-backtest"></canvas>
+        <div class="chart-overlay" id="backtest-overlay">
+          <span class="overlay-text">Run simulation to generate backtest</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════  SECTION 5: DISTRIBUTION  ══════════ -->
+    <section class="section reveal" id="section-dist">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h2 class="section-title">Return Distribution</h2>
+        <div class="section-line"></div>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item"><span class="legend-dot" style="background:rgba(0,255,133,0.5)"></span> Return Frequency</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#FF3B47"></span> VaR</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#FF8C00"></span> CVaR</div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart-dist"></canvas>
+        <div class="chart-overlay" id="dist-overlay">
+          <span class="overlay-text">Run simulation to plot distribution</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════  FOOTER  ════════════════════════ -->
+  <footer class="footer">
+    <div class="footer-left">
+      <span class="footer-mark">◈ MCARE</span>
+      <span class="footer-copy">Monte Carlo Risk Analysis Engine · Nithik Deva · CS1204</span>
+    </div>
+    <div class="footer-right">
+      <span class="footer-note">GBM | VaR | CVaR | Backtesting · All computations client-side</span>
+    </div>
+  </footer>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
