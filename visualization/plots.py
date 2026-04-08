@@ -15,8 +15,8 @@ def plot_returns(returns :pd.Series, ticker:str )->None:
 
 def plot_var_vs_returns(returns:pd.Series,var_series:pd.Series,breach_info:dict,ticker:str)->None:
     
-    aligned_returns,aligned_var = returns.align(join="inner")
-    breach_dates = breach_info["breaches_date"]
+    aligned_returns,aligned_var = returns.align(var_series, join="inner")
+    breach_dates = breach_info["breaches_dates"]
 
     plt.figure(figsize=(12,5))
     plt.plot(aligned_returns.index,-aligned_returns.values,color="steelblue",linewidth = 0.8,label ="Actual loss")
@@ -40,7 +40,7 @@ def plot_return_distribution(returns:pd.Series,hist_var:float,hist_cvar:float, t
     plt.hist(returns.values, bins = 100, color = "steelblue", alpha = 0.7, edgecolor = "white")
 
     plt.axvline( -hist_var, color = "orange", linewidth = 1.5, label = f"VaR : {hist_var :.4f}")
-    plt.axvline( -hist_cvar, color = "red", linewidth = 1.5, label = f"VaR : {hist_cvar :.4f}")
+    plt.axvline( -hist_cvar, color = "red", linewidth = 1.5, label = f"CVaR : {hist_cvar :.4f}")
     plt.title(f"{ticker}- Returns Distribution")
     plt.xlabel("Log Returns")
     plt.ylabel("Frequency")
@@ -50,10 +50,10 @@ def plot_return_distribution(returns:pd.Series,hist_var:float,hist_cvar:float, t
 
 def plot_breach_rate (breach_info:dict,ticker:str)->None:
     actual = breach_info["breach_rate"]
-    expected = breach_info["expected_berach_rate"]
+    expected = breach_info["expected_breach_rate"]
 
     plt.figure(figsize= (6,4))
-    plt.bar(["Actual Breach Rate, Expected Breach Rate"],[actual,expected],color = ["tomato","steelblue"])
+    plt.bar(["Actual Breach Rate", "Expected Breach Rate"],[actual,expected],color = ["tomato","steelblue"])
 
     plt.title(f"{ticker} - Backtesting Breach Rate")
     plt.ylabel("Rate")
