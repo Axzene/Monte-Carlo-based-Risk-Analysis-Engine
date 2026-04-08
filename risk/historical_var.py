@@ -1,7 +1,6 @@
 import pandas as pd 
 import numpy as np
 
-def compute_historical_var(returns: pd.Series, confidence_level: float = 0.95) ->float:
 def compute_historical_var(returns: pd.Series, confidence_level: float = 0.95) -> float:
 
     """ 
