@@ -163,12 +163,16 @@ function runBacktest(terminalReturns, varValue, confidenceLevel) {
     }
   }
 
-  const observedRate   = breaches / n;
+  const observedRate    = breaches / n;
   const theoreticalRate = 1 - confidenceLevel;
-  const accuracy       = 1 - Math.abs(observedRate - theoreticalRate) / (theoreticalRate + 1e-10);
+  const accuracy        = 1 - Math.abs(observedRate - theoreticalRate) / (theoreticalRate + 1e-10);
+  // Signal based on relative rate deviation — not raw count (which scales with path count)
+  const relDev = theoreticalRate > 0
+    ? Math.abs(observedRate - theoreticalRate) / theoreticalRate
+    : 0;
   let signal = 'GREEN';
-  if (breaches > 10) signal = 'YELLOW';
-  if (breaches > 25) signal = 'RED';
+  if (relDev > 0.20) signal = 'YELLOW'; // >20% relative deviation from expected rate
+  if (relDev > 0.50) signal = 'RED';    // >50% relative deviation — model is miscalibrated
 
   return { breaches, observedRate, theoreticalRate, accuracy, signal, breachFlags };
 }
@@ -383,50 +387,91 @@ function renderDistChart({ centers, counts, varValue, cvarValue }) {
   const ctx = document.getElementById('chart-dist').getContext('2d');
   if (chartDist) chartDist.destroy();
 
-  // Color bars: red if return < -VaR (tail), else accent
-  const barColors = centers.map(c =>
-    c < -varValue ? 'rgba(255,59,71,0.65)' : 'rgba(0,255,133,0.3)'
-  );
-  const borderColors = centers.map(c =>
-    c < -varValue ? RED : 'rgba(0,255,133,0.6)'
-  );
+  // Build bar colors — red tail left of -VaR threshold
+  const varThreshold = -varValue;
+  const barColors    = centers.map(c => c < varThreshold ? 'rgba(255,59,71,0.65)' : 'rgba(0,255,133,0.3)');
+  const borderColors = centers.map(c => c < varThreshold ? RED : 'rgba(0,255,133,0.6)');
 
-  const opts = baseChartOptions('Return', 'Frequency');
-  opts.plugins.annotation = {};
-  opts.scales.x.ticks.callback = v => `${(v * 100).toFixed(1)}%`;
-  opts.animation = { duration: 900, easing: 'easeOutQuart' };
+  // Use centers as numeric x-data (scatter-bar hybrid via linear x-scale)
+  const barData = centers.map((c, i) => ({ x: c, y: counts[i] }));
+
+  const binWidth = centers.length > 1 ? Math.abs(centers[1] - centers[0]) : 0.005;
+
+  const opts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 900, easing: 'easeOutQuart' },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#111419',
+        borderColor: '#1e232b',
+        borderWidth: 1,
+        titleColor: '#c8d0db',
+        bodyColor: '#7a8592',
+        titleFont: { family: "'JetBrains Mono', monospace", size: 11 },
+        bodyFont:  { family: "'JetBrains Mono', monospace", size: 10 },
+        padding: 10,
+        callbacks: {
+          title: items => `Return: ${(items[0].parsed.x * 100).toFixed(2)}%`,
+          label: item => ` Frequency: ${item.parsed.y}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        type: 'linear',
+        grid: { color: GRID, lineWidth: 0.5 },
+        ticks: {
+          color: TEXT2,
+          font: { family: "'JetBrains Mono', monospace", size: 10 },
+          maxTicksLimit: 8,
+          callback: v => `${(v * 100).toFixed(0)}%`,
+        },
+        title: {
+          display: true, text: 'Return',
+          color: TEXT2, font: { family: "'JetBrains Mono', monospace", size: 10 },
+        },
+        border: { color: GRID },
+      },
+      y: {
+        grid: { color: GRID, lineWidth: 0.5 },
+        ticks: {
+          color: TEXT2,
+          font: { family: "'JetBrains Mono', monospace", size: 10 },
+          maxTicksLimit: 6,
+        },
+        title: {
+          display: true, text: 'Frequency',
+          color: TEXT2, font: { family: "'JetBrains Mono', monospace", size: 10 },
+        },
+        border: { color: GRID },
+      },
+    },
+  };
 
   chartDist = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: centers.map(c => (c * 100).toFixed(2) + '%'),
-      datasets: [
-        {
-          label: 'Frequency',
-          data: counts,
-          backgroundColor: barColors,
-          borderColor: borderColors,
-          borderWidth: 1,
-          borderRadius: 0,
-          categoryPercentage: 1.0,
-          barPercentage: 1.0,
-        },
-        // VaR line — vertical annotation via fake scatter
-        {
-          type: 'scatter',
-          label: 'VaR',
-          data: [],
-          pointRadius: 0,
-        },
-      ],
+      datasets: [{
+        label: 'Frequency',
+        data: barData,
+        backgroundColor: barColors,
+        borderColor: borderColors,
+        borderWidth: 1,
+        borderRadius: 0,
+        barThickness: 'flex',
+        categoryPercentage: 1.0,
+        barPercentage: 1.0,
+      }],
     },
     options: opts,
     plugins: [{
       id: 'thresholdLines',
       afterDraw(chart) {
         const { ctx: c, chartArea, scales } = chart;
-        const drawLine = (xVal, color, label) => {
-          const x = scales.x.getPixelForValue(xVal);
+        const drawLine = (val, color, label) => {
+          const x = scales.x.getPixelForValue(val);
           if (x < chartArea.left || x > chartArea.right) return;
           c.save();
           c.beginPath();
@@ -436,21 +481,14 @@ function renderDistChart({ centers, counts, varValue, cvarValue }) {
           c.lineWidth = 1.5;
           c.setLineDash([5, 4]);
           c.stroke();
-          // Label
           c.fillStyle = color;
-          c.font = "600 10px 'JetBrains Mono', monospace";
+          c.font = "700 10px 'JetBrains Mono', monospace";
           c.textAlign = 'center';
-          c.fillText(label, x, chartArea.top + 12);
+          c.fillText(label, x, chartArea.top + 14);
           c.restore();
         };
-        // find label indices
-        const labels = chart.data.labels;
-        const varLabel  = ((-varValue)  * 100).toFixed(2) + '%';
-        const cvarLabel = ((-cvarValue) * 100).toFixed(2) + '%';
-        const varIdx    = labels.findIndex(l => parseFloat(l) <= parseFloat(varLabel)  + 0.01);
-        const cvarIdx   = labels.findIndex(l => parseFloat(l) <= parseFloat(cvarLabel) + 0.01);
-        if (varIdx  >= 0) drawLine(varIdx,  RED,    'VaR');
-        if (cvarIdx >= 0) drawLine(cvarIdx, ORANGE, 'CVaR');
+        drawLine(-varValue,  RED,    `VaR ${(varValue  * 100).toFixed(1)}%`);
+        drawLine(-cvarValue, ORANGE, `CVaR ${(cvarValue * 100).toFixed(1)}%`);
       },
     }],
   });
